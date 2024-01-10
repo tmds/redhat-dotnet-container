@@ -1,0 +1,60 @@
+<Project>
+
+  <PropertyGroup>
+    <!-- (User settable) Default base image locations for UseRedHatDotnetImage. -->
+    <RedHatAspNet60RuntimeImage Condition="'$(RedHatAspNet60RuntimeImage)' == ''">registry.access.redhat.com/ubi8/dotnet-60-runtime:latest</RedHatAspNet60RuntimeImage>
+    <RedHatAspNet70RuntimeImage Condition="'$(RedHatAspNet70RuntimeImage)' == ''">registry.access.redhat.com/ubi8/dotnet-70-runtime:latest</RedHatAspNet70RuntimeImage>
+    <RedHatAspNet80RuntimeImage Condition="'$(RedHatAspNet80RuntimeImage)' == ''">registry.access.redhat.com/ubi8/dotnet-80-runtime:latest</RedHatAspNet80RuntimeImage>
+
+    <!-- Detect if we're running in a Kubernetes cluster, and what namespace. -->
+    <_namespacePath>/var/run/secrets/kubernetes.io/serviceaccount/namespace</_namespacePath>
+    <OpenShiftCurrentNamespace/>
+    <OpenShiftCurrentNamespace Condition="Exists('$(_namespacePath)')">$([System.IO.File]::ReadAllText($(_namespacePath)))</OpenShiftCurrentNamespace>
+    <OpenShiftRunningInCluster>false</OpenShiftRunningInCluster>
+    <OpenShiftRunningInCluster Condition="'$(OpenShiftCurrentNamespace)' != ''">true</OpenShiftRunningInCluster>
+
+    <OpenShiftInternalRegistry>image-registry.openshift-image-registry.svc:5000</OpenShiftInternalRegistry>
+    <!-- (User settable) Internal registry namespace where to find dotnet imagestreams. -->
+    <OpenShiftDotnetNamespace Condition="'$(OpenShiftDotnetNamespace)' == ''">$(OpenShiftCurrentNamespace)</OpenShiftDotnetNamespace>
+    <!-- (User settable) Internal registry namespace where to push to. -->
+    <OpenShiftNamespace Condition="'$(OpenShiftNamespace)' == ''">$(OpenShiftCurrentNamespace)</OpenShiftNamespace>
+
+    <!-- (User settable) Default to use the red hat dotnet images, and prefer to use the internal registry imagestreams when running on a cluster. -->
+    <UseRedHatDotnetImage Condition="'$(UseRedHatDotnetImage)' == ''">true</UseRedHatDotnetImage>
+    <UseOpenShiftDotnetImage Condition="'$(UseOpenShiftDotnetImage)' == ''">true</UseOpenShiftDotnetImage>
+    <_useOpenShiftDotnetImageOnCluster>false</_useOpenShiftDotnetImageOnCluster>
+    <_useOpenShiftDotnetImageOnCluster Condition="'$(UseOpenShiftDotnetImage)' == 'true' And '$(OpenShiftRunningInCluster)' == 'true'">true</_useOpenShiftDotnetImageOnCluster>
+  </PropertyGroup>
+
+  <!-- Use a Red Hat base image when the user hasn't opted out. -->
+  <Target Name="ComputeRedHatContainerBaseImage" BeforeTargets="ComputeContainerBaseImage" Condition="'$(UseRedHatDotnetImage)' == 'true' Or '$(_useOpenShiftDotnetImageOnCluster)' == 'true'">
+    <PropertyGroup>
+      <ContainerBaseImage/>
+    </PropertyGroup>
+
+    <PropertyGroup Condition="'$(ContainerBaseImage)' == '' And '$(_useOpenShiftDotnetImageOnCluster)' == 'true'">
+      <ContainerBaseImage>$(OpenShiftInternalRegistry)/$(UseOpenShiftDotnetImage)/dotnet:$(_TargetFrameworkVersionWithoutV)</ContainerBaseImage>
+    </PropertyGroup>
+
+    <PropertyGroup Condition="'$(ContainerBaseImage)' == '' And '$(UseRedHatDotnetImage)' == 'true'">
+      <ContainerBaseImage Condition="'$(_TargetFrameworkVersionWithoutV)' == '6.0'">$(RedHatAspNet60RuntimeImage)</ContainerBaseImage>
+      <ContainerBaseImage Condition="'$(_TargetFrameworkVersionWithoutV)' == '7.0'">$(RedHatAspNet70RuntimeImage)</ContainerBaseImage>
+      <ContainerBaseImage Condition="'$(_TargetFrameworkVersionWithoutV)' == '8.0'">$(RedHatAspNet80RuntimeImage)</ContainerBaseImage>
+    </PropertyGroup>
+
+    <Error Condition="'$(ContainerBaseImage)' == ''" Text="The Red Hat base image for v$(_TargetFrameworkVersionWithoutV) could not be determined." />
+  </Target>
+
+  <!-- Push to the OpenShift internal registry when ContainerRegistry is empty and we're running on a cluster. -->
+  <Target Name="ComputeRedHatComputeContainerConfig" BeforeTargets="ComputeContainerConfig" Condition="'$(ContainerRegistry)' == '' And '$(OpenShiftRunningInCluster)' == 'true'">
+    <PropertyGroup>
+      <ContainerRegistry>image-registry.openshift-image-registry.svc:5000</ContainerRegistry>
+
+      <!-- Like the SDK, default ContainerRepository to the AssemblyName. -->
+      <ContainerRepository Condition="'$(ContainerRepository)' == ''">$(AssemblyName)</ContainerRepository>
+      <!-- Prefix ContainerRepository with the target namespace. -->
+      <ContainerRepository>$(OpenShiftNamespace)/$(ContainerRepository)</ContainerRepository>
+    </PropertyGroup>
+  </Target>
+
+</Project>

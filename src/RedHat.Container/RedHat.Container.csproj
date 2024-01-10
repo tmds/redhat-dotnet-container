@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net6.0</TargetFramework>
+    <NoWarn>NU5128</NoWarn> <!-- Package has no assets for the TargetFramework. -->
+    <RollForward>Major</RollForward>
+
+    <IncludeBuildOutput>false</IncludeBuildOutput>
+    <PublishBuildOutput>false</PublishBuildOutput>
+    <NoBuild>true</NoBuild>
+    <NoRestore>true</NoRestore>
+    <DisableImplicitFrameworkReferences>true</DisableImplicitFrameworkReferences>
+
+    <PackageId>RedHat.Container</PackageId>
+    <Version>0.0.1</Version>
+    <Product>.NET SDK support for Red Hat .NET container images</Product>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Content Include="$(MSBuildProjectDirectory)/RedHat.Container.props">
+      <PackagePath>build/RedHat.Container.props</PackagePath>
+      <Pack>true</Pack>
+    </Content>
+    <Content Include="$(MSBuildProjectDirectory)/RedHat.Container.targets">
+      <PackagePath>build/RedHat.Container.targets</PackagePath>
+      <Pack>true</Pack>
+    </Content>
+  </ItemGroup>
+</Project>
