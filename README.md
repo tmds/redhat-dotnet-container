@@ -23,3 +23,11 @@ Overview of properties:
 | RedHatAspNet60RuntimeImage | Location of the .NET 6 ASP.NET Core runtime image. | registry.access.redhat.com/ubi8/dotnet-60-runtime:latest |
 | RedHatAspNet70RuntimeImage | Location of the .NET 7 ASP.NET Core runtime image. | registry.access.redhat.com/ubi8/dotnet-70-runtime:latest |
 | RedHatAspNet80RuntimeImage | Location of the .NET 8 ASP.NET Core runtime image. | registry.access.redhat.com/ubi8/dotnet-80-runtime:latest |
+
+### Adding the package to your project
+
+You can add the latest CI package to your project using:
+
+```
+dotnet add package RedHat.Container --prerelease -s https://www.myget.org/F/tmds/api/v3/index.json
+```
