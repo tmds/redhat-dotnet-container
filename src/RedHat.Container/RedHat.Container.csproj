@@ -11,7 +11,7 @@
     <DisableImplicitFrameworkReferences>true</DisableImplicitFrameworkReferences>
 
     <PackageId>RedHat.Container</PackageId>
-    <Version>0.0.1</Version>
+    <VersionPrefix>0.0.1</VersionPrefix>
     <Product>.NET SDK support for Red Hat .NET container images</Product>
   </PropertyGroup>
 
