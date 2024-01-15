@@ -95,4 +95,5 @@ spec:
                       "/p:ContainerRegistry=${ContainerRegistry}" \
                       "/p:ContainerRepository=${ContainerRepository}" \
                       "/p:ContainerImageTag=${ContainerImageTag}" \
+                      /p:DisableRedHatContainerPackage=true \
                       "$(params.PROJECT)"
