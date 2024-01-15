@@ -1,0 +1,98 @@
+---
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: dotnet-publish-image
+  labels:
+    app.kubernetes.io/version: "0.1"
+  annotations:
+    tekton.dev/pipelines.minVersion: "0.19"
+    tekton.dev/tags: dotnet, workspace
+    tekton.dev/displayName: "dotnet publish image"
+spec:
+  description: >-
+    dotnet-publish-image task builds a container image from a .NET project
+    and pushes it to a container registry.
+  # results:
+  #   - name: IMAGE_DIGEST
+  #     description: Digest of the image just built.
+  params:
+    - name: PROJECT
+      description: Path of the .NET project file.
+      type: string
+    - name: IMAGE_NAME
+      description: |
+        Name of the image repository to push. When it does not include a registry, it is pushed to the internal cluster registry.
+        If no namespace is included, the current namespace is prepended to the name.
+      type: string
+    - name: SDK_VERSION
+      default: latest
+      description: Tag of .NET SDK imagestream.
+      type: string
+    - name: DOTNET_NAMESPACE
+      description: Namespace of the .NET imagestreams. Set to '$(context.taskRun.namespace)' to use the pipeline namespace.
+      default: openshift
+      type: string
+  workspaces:
+    - name: source
+      mountPath: /workspace/source
+    # - name: dockerconfig
+    #   description: >-
+    #     An optional workspace that allows providing a .docker/config.json file to access the container registry.
+    #     The file should be placed at the root of the Workspace with name config.json.
+    #   optional: true
+  steps:
+    - name: publish-image
+      image: image-registry.openshift-image-registry.svc:5000/$(params.DOTNET_NAMESPACE)/dotnet:$(params.SDK_VERSION)
+      script: |
+        cp -a "$(workspaces.source.path)/." .
+
+        OpenShiftInternalRegistry="image-registry.openshift-image-registry.svc:5000"
+        OpenShiftDotnetNamespace="$(params.DOTNET_NAMESPACE)"
+
+        # Support short names for pushing to the internal registry.
+        IMAGE_NAME="$(params.IMAGE_NAME)"
+        # If the name includes no repository, use the OpenShift internal repository.
+        if [[ "${IMAGE_NAME%%/*}" != *.* ]]; then
+            # If the name has no path component, use the current namespace.
+            if [[ "${IMAGE_NAME}" != */* ]]; then
+            IMAGE_NAME="$(context.taskRun.namespace)/${IMAGE_NAME}"
+            fi
+            IMAGE_NAME="${OpenShiftInternalRegistry}/${IMAGE_NAME}"
+        fi
+
+        # Determine properties used by the .NET SDK container tooling.
+        # Extract the repository
+        ContainerRegistry="${IMAGE_NAME%%/*}"
+        ContainerRepository="${IMAGE_NAME#*/}"
+        ContainerImageTag="latest"
+        # Extract the tag (if there is one)
+        if [[ "${ContainerRepository}" == *:* ]]; then
+          ContainerImageTag="${ContainerRepository##*:}"
+          ContainerRepository="${ContainerRepository%:*}"
+        fi
+
+        PublishProfileFullPath=/tmp/OpenShiftContainer.pubxml
+        cat >"${PublishProfileFullPath}" <<'EOF'
+        <Project>
+          <PropertyGroup>
+            <WebPublishMethod>Container</WebPublishMethod>
+          </PropertyGroup>
+
+          <Target Name="ComputeOpenShiftContainerBaseImage" BeforeTargets="ComputeContainerBaseImage">
+            <PropertyGroup>
+              <!-- Use the image stream tag for the .NET target framework. -->
+              <ContainerBaseImage>$(OpenShiftInternalRegistry)/$(OpenShiftDotnetNamespace)/dotnet-runtime:$(_TargetFrameworkVersionWithoutV)</ContainerBaseImage>
+            </PropertyGroup>
+          </Target>
+        </Project>
+        EOF
+
+        dotnet publish /p:PublishProfile=OpenShiftContainer \
+                      "/p:PublishProfileFullPath=${PublishProfileFullPath}" \
+                      "/p:OpenShiftInternalRegistry=${OpenShiftInternalRegistry}" \
+                      "/p:OpenShiftDotnetNamespace=${OpenShiftDotnetNamespace}" \
+                      "/p:ContainerRegistry=${ContainerRegistry}" \
+                      "/p:ContainerRepository=${ContainerRepository}" \
+                      "/p:ContainerImageTag=${ContainerImageTag}" \
+                      "$(params.PROJECT)"

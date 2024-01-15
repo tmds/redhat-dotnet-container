@@ -2,7 +2,7 @@
 
 This repo contains prototypes for improving the UX when using Red Hat .NET container images with the .NET SDK.
 
-## RedHat.Container package
+## RedHat.Container NuGet package
 
 Adding this NuGet package makes the SDK use Red Hat .NET base images instead of Microsoft .NET base images. To opt-out of this behavior, you can set `UseRedHatDotnetImage` to `false`.
 The image locations can be overridden by setting `RedHatAspNet60RuntimeImage`, `RedHatAspNet70RuntimeImage`, ... .
@@ -31,3 +31,22 @@ You can add the latest CI package to your project using:
 ```
 dotnet add package RedHat.Container --prerelease -s https://www.myget.org/F/tmds/api/v3/index.json
 ```
+
+## dotnet-publish-image Tekton task
+
+The `dotnet-publish-image` Tekton task publishes a container image from a .NET project.
+
+Task workspaces:
+
+| Workspace | Description   |
+|-----------|---------------|
+| source    | Source code.  |
+
+Overview of parameters:
+
+| Parameter         | Description | Default value |
+|-------------------|-------------|---------------|
+| PROJECT           | Path of the .NET project file. | |
+| IMAGE_NAME        | Image registry to push.<br>Name of the image repository to push. When it does not include a registry, it is pushed to the internal cluster registry. If no namespace is included, the current namespace is prepended to the name. | |
+| SDK_VERSION       | Tag of .NET SDK imagestream. | latest |
+| DOTNET_NAMESPACE  | Namespace of the .NET imagestreams. Set to '$(context.taskRun.namespace)' to use the pipeline namespace. | openshift |
