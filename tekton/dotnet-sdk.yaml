@@ -1,0 +1,39 @@
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: dotnet-sdk
+  labels:
+    app.kubernetes.io/version: "0.1"
+  annotations:
+    tekton.dev/pipelines.minVersion: "0.19"
+    tekton.dev/tags: dotnet, workspace
+    tekton.dev/displayName: ".NET SDK"
+spec:
+  description: >-
+    dotnet-sdk task runs a user-specified script that can use the .NET SDK.
+  workspaces:
+    - name: source
+      mountPath: /workspace/source
+      description: >-
+        An optional workspace that allows to provide source code.
+      optional: true
+  params:
+    - name: SCRIPT
+      description: The OpenShift CLI arguments to run
+      type: string
+      default: "dotnet --info"
+    - name: SDK_VERSION
+      default: latest
+      description: Tag of .NET SDK imagestream.
+      type: string
+    - name: DOTNET_NAMESPACE
+      description: Namespace of the .NET imagestreams. Set to '$(context.taskRun.namespace)' to use the pipeline namespace.
+      default: openshift
+      type: string
+  steps:
+    - name: dotnet
+      image: image-registry.openshift-image-registry.svc:5000/$(params.DOTNET_NAMESPACE)/dotnet:$(params.SDK_VERSION)
+      script: |
+        #!/usr/bin/env bash
+
+        $(params.SCRIPT)
