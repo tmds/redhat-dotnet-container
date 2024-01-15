@@ -27,7 +27,7 @@
   </PropertyGroup>
 
   <!-- Use a Red Hat base image when the user hasn't opted out. -->
-  <Target Name="ComputeRedHatContainerBaseImage" BeforeTargets="ComputeContainerBaseImage" Condition="$(DisableRedHatContainerPackage) != 'true' And '$(UseRedHatDotnetImage)' == 'true' Or '$(_useOpenShiftDotnetImageOnCluster)' == 'true'">
+  <Target Name="ComputeRedHatContainerBaseImage" BeforeTargets="ComputeContainerBaseImage" Condition="$(DisableRedHatContainerPackage) != 'true' And ('$(UseRedHatDotnetImage)' == 'true' Or '$(_useOpenShiftDotnetImageOnCluster)' == 'true')">
     <Warning Condition="'$(ContainerBaseImage)' != ''" Code="RHCONTAINER001" Text="A container base image was set, it will not be overridden." />
 
     <PropertyGroup Condition="'$(ContainerBaseImage)' == '' And '$(_useOpenShiftDotnetImageOnCluster)' == 'true'">
