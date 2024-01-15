@@ -33,7 +33,7 @@
     </PropertyGroup>
 
     <PropertyGroup Condition="'$(ContainerBaseImage)' == '' And '$(_useOpenShiftDotnetImageOnCluster)' == 'true'">
-      <ContainerBaseImage>$(OpenShiftInternalRegistry)/$(UseOpenShiftDotnetImage)/dotnet:$(_TargetFrameworkVersionWithoutV)</ContainerBaseImage>
+      <ContainerBaseImage>$(OpenShiftInternalRegistry)/$(OpenShiftDotnetNamespace)/dotnet-runtime:$(_TargetFrameworkVersionWithoutV)</ContainerBaseImage>
     </PropertyGroup>
 
     <PropertyGroup Condition="'$(ContainerBaseImage)' == '' And '$(UseRedHatDotnetImage)' == 'true'">
@@ -46,9 +46,9 @@
   </Target>
 
   <!-- Push to the OpenShift internal registry when ContainerRegistry is empty and we're running on a cluster. -->
-  <Target Name="ComputeRedHatComputeContainerConfig" BeforeTargets="ComputeContainerConfig" Condition="'$(ContainerRegistry)' == '' And '$(OpenShiftRunningInCluster)' == 'true'">
+  <Target Name="ComputeRedHatContainerConfig" BeforeTargets="ComputeContainerConfig" Condition="'$(ContainerRegistry)' == '' And '$(OpenShiftRunningInCluster)' == 'true'">
     <PropertyGroup>
-      <ContainerRegistry>image-registry.openshift-image-registry.svc:5000</ContainerRegistry>
+      <ContainerRegistry>$(OpenShiftInternalRegistry)</ContainerRegistry>
 
       <!-- Like the SDK, default ContainerRepository to the AssemblyName. -->
       <ContainerRepository Condition="'$(ContainerRepository)' == ''">$(AssemblyName)</ContainerRepository>
