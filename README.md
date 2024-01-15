@@ -50,3 +50,32 @@ Overview of parameters:
 | IMAGE_NAME        | Image registry to push.<br>Name of the image repository to push. When it does not include a registry, it is pushed to the internal cluster registry. If no namespace is included, the current namespace is prepended to the name. | |
 | SDK_VERSION       | Tag of .NET SDK imagestream. | latest |
 | DOTNET_NAMESPACE  | Namespace of the .NET imagestreams. Set to '$(context.taskRun.namespace)' to use the pipeline namespace. | openshift |
+
+### Adding the task to your OpenShift namespace
+
+```
+oc apply -f https://raw.githubusercontent.com/tmds/redhat-dotnet-container/main/tekton/dotnet-publish-image.yaml
+```
+
+## dotnet-sdk Tekton task
+
+The `dotnet-sdk` Tekton task allows to run a user-specified script that uses the .NET SDK.
+
+Task workspaces:
+
+| Workspace | Description   |
+|-----------|---------------|
+| source    | Source code.  |
+
+Overview of parameters:
+
+| Parameter         | Description | Default value |
+|-------------------|-------------|---------------|
+| SDK_VERSION       | Tag of .NET SDK imagestream. | latest |
+| DOTNET_NAMESPACE  | Namespace of the .NET imagestreams. Set to '$(context.taskRun.namespace)' to use the pipeline namespace. | openshift |
+
+### Adding the task to your OpenShift namespace
+
+```
+oc apply -f https://raw.githubusercontent.com/tmds/redhat-dotnet-container/main/tekton/dotnet-sdk.yaml
+```

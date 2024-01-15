@@ -1,4 +1,3 @@
----
 apiVersion: tekton.dev/v1beta1
 kind: Task
 metadata:
@@ -45,6 +44,8 @@ spec:
     - name: publish-image
       image: image-registry.openshift-image-registry.svc:5000/$(params.DOTNET_NAMESPACE)/dotnet:$(params.SDK_VERSION)
       script: |
+        #!/usr/bin/env bash
+
         cp -a "$(workspaces.source.path)/." .
 
         OpenShiftInternalRegistry="image-registry.openshift-image-registry.svc:5000"
