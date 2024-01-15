@@ -1,6 +1,6 @@
 <Project>
 
-  <PropertyGroup>
+  <PropertyGroup Condition="$(DisableRedHatContainerPackage) != 'true'">
     <!-- (User settable) Default base image locations for UseRedHatDotnetImage. -->
     <RedHatAspNet60RuntimeImage Condition="'$(RedHatAspNet60RuntimeImage)' == ''">registry.access.redhat.com/ubi8/dotnet-60-runtime:latest</RedHatAspNet60RuntimeImage>
     <RedHatAspNet70RuntimeImage Condition="'$(RedHatAspNet70RuntimeImage)' == ''">registry.access.redhat.com/ubi8/dotnet-70-runtime:latest</RedHatAspNet70RuntimeImage>
@@ -27,10 +27,8 @@
   </PropertyGroup>
 
   <!-- Use a Red Hat base image when the user hasn't opted out. -->
-  <Target Name="ComputeRedHatContainerBaseImage" BeforeTargets="ComputeContainerBaseImage" Condition="'$(UseRedHatDotnetImage)' == 'true' Or '$(_useOpenShiftDotnetImageOnCluster)' == 'true'">
-    <PropertyGroup>
-      <ContainerBaseImage/>
-    </PropertyGroup>
+  <Target Name="ComputeRedHatContainerBaseImage" BeforeTargets="ComputeContainerBaseImage" Condition="$(DisableRedHatContainerPackage) != 'true' And '$(UseRedHatDotnetImage)' == 'true' Or '$(_useOpenShiftDotnetImageOnCluster)' == 'true'">
+    <Warning Condition="'$(ContainerBaseImage)' != ''" Code="RHCONTAINER001" Text="A container base image was set, it will not be overridden." />
 
     <PropertyGroup Condition="'$(ContainerBaseImage)' == '' And '$(_useOpenShiftDotnetImageOnCluster)' == 'true'">
       <ContainerBaseImage>$(OpenShiftInternalRegistry)/$(OpenShiftDotnetNamespace)/dotnet-runtime:$(_TargetFrameworkVersionWithoutV)</ContainerBaseImage>
@@ -42,11 +40,11 @@
       <ContainerBaseImage Condition="'$(_TargetFrameworkVersionWithoutV)' == '8.0'">$(RedHatAspNet80RuntimeImage)</ContainerBaseImage>
     </PropertyGroup>
 
-    <Error Condition="'$(ContainerBaseImage)' == ''" Text="The Red Hat base image for v$(_TargetFrameworkVersionWithoutV) could not be determined." />
+    <Error Condition="'$(ContainerBaseImage)' == ''" Code="RHCONTAINER002" Text="The Red Hat base image for v$(_TargetFrameworkVersionWithoutV) could not be determined. Upgrade the 'RedHat.Container' package to add support for newer .NET versions." />
   </Target>
 
   <!-- Push to the OpenShift internal registry when ContainerRegistry is empty and we're running on a cluster. -->
-  <Target Name="ComputeRedHatContainerConfig" BeforeTargets="ComputeContainerConfig" Condition="'$(ContainerRegistry)' == '' And '$(OpenShiftRunningInCluster)' == 'true'">
+  <Target Name="ComputeRedHatContainerConfig" BeforeTargets="ComputeContainerConfig" Condition="$(DisableRedHatContainerPackage) != 'true' And '$(ContainerRegistry)' == '' And '$(OpenShiftRunningInCluster)' == 'true'">
     <PropertyGroup>
       <ContainerRegistry>$(OpenShiftInternalRegistry)</ContainerRegistry>
 
