@@ -46,55 +46,65 @@ spec:
       script: |
         #!/usr/bin/env bash
 
-        cp -a "$(workspaces.source.path)/." .
+        mkdir -p ~/src
+        cp -a "$(workspaces.source.path)/." ~/src
+        cd ~/src
 
-        OpenShiftInternalRegistry="image-registry.openshift-image-registry.svc:5000"
-        OpenShiftDotnetNamespace="$(params.DOTNET_NAMESPACE)"
-
-        # Support short names for pushing to the internal registry.
-        IMAGE_NAME="$(params.IMAGE_NAME)"
-        # If the name includes no repository, use the OpenShift internal repository.
-        if [[ "${IMAGE_NAME%%/*}" != *.* ]]; then
-            # If the name has no path component, use the current namespace.
-            if [[ "${IMAGE_NAME}" != */* ]]; then
-            IMAGE_NAME="$(context.taskRun.namespace)/${IMAGE_NAME}"
-            fi
-            IMAGE_NAME="${OpenShiftInternalRegistry}/${IMAGE_NAME}"
-        fi
-
-        # Determine properties used by the .NET SDK container tooling.
-        # Extract the repository
-        ContainerRegistry="${IMAGE_NAME%%/*}"
-        ContainerRepository="${IMAGE_NAME#*/}"
-        ContainerImageTag="latest"
-        # Extract the tag (if there is one)
-        if [[ "${ContainerRepository}" == *:* ]]; then
-          ContainerImageTag="${ContainerRepository##*:}"
-          ContainerRepository="${ContainerRepository%:*}"
-        fi
+        export OpenShiftInternalRegistry="image-registry.openshift-image-registry.svc:5000"
+        export OpenShiftDotnetNamespace="$(params.DOTNET_NAMESPACE)"
+        export OpenShiftCurrentNamespace="$(context.taskRun.namespace)"
 
         PublishProfileFullPath=/tmp/OpenShiftContainer.pubxml
         cat >"${PublishProfileFullPath}" <<'EOF'
         <Project>
           <PropertyGroup>
             <WebPublishMethod>Container</WebPublishMethod>
+
+            <!-- Stop the RedHat.Container package to generate a warning for specifying a base image. -->
+            <NoWarn>$(NoWarn);RHCONTAINER001</NoWarn>
           </PropertyGroup>
 
           <Target Name="ComputeOpenShiftContainerBaseImage" BeforeTargets="ComputeContainerBaseImage">
+
+            <Error Condition="'$(OpenShiftInternalRegistry)' == ''" Text="'OpenShiftInternalRegistry' is not set." />
+            <Error Condition="'$(OpenShiftDotnetNamespace)' == ''" Text="'OpenShiftDotnetNamespace' is not set." />
+
+            <!-- Pick the proper base image from the OpenShiftDotnetNamespace namespace. -->
             <PropertyGroup>
-              <!-- Use the image stream tag for the .NET target framework. -->
               <ContainerBaseImage>$(OpenShiftInternalRegistry)/$(OpenShiftDotnetNamespace)/dotnet-runtime:$(_TargetFrameworkVersionWithoutV)</ContainerBaseImage>
+            </PropertyGroup>
+          </Target>
+
+          <Target Name="ComputeOpenShiftContainerConfig" BeforeTargets="ComputeContainerConfig">
+
+            <Error Condition="'$(OpenShiftImageName)' == ''" Text="'OpenShiftImageName' is not set." />
+            <Error Condition="'$(OpenShiftInternalRegistry)' == ''" Text="'OpenShiftInternalRegistry' is not set." />
+            <Error Condition="'$(OpenShiftCurrentNamespace)' == ''" Text="'OpenShiftCurrentNamespace' is not set." />
+
+            <!-- Expand OpenShiftImageName, using OpenShiftInternalRegistry and OpenShiftCurrentNamespace. -->
+            <PropertyGroup Condition="$(OpenShiftImageName.IndexOf('.')) == -1 Or $(OpenShiftImageName.IndexOf('.')) &gt; $(OpenShiftImageName.IndexOf('/'))">
+              <OpenShiftImageName Condition="$(OpenShiftImageName.IndexOf('/')) == -1">$(OpenShiftCurrentNamespace)/$(OpenShiftImageName)</OpenShiftImageName>
+              <OpenShiftImageName>$(OpenShiftInternalRegistry)/$(OpenShiftImageName)</OpenShiftImageName>
+            </PropertyGroup>
+
+            <!-- Set SDK container tooling properties based on OpenShiftImageName. -->
+            <PropertyGroup>
+              <ContainerRegistry>$(OpenShiftImageName.Substring(0, $(OpenShiftImageName.IndexOf('/'))))</ContainerRegistry>
+              <ContainerRepository>$(OpenShiftImageName.Substring($([MSBuild]::Add($(OpenShiftImageName.IndexOf('/')), 1))))</ContainerRepository>
+              <ContainerImageTag>latest</ContainerImageTag>
+              <ContainerImageTag Condition="$(ContainerRepository.Contains(':'))">$(ContainerRepository.Substring($([MSBuild]::Add($(ContainerRepository.IndexOf(':')), 1))))</ContainerImageTag>
+              <ContainerRepository Condition="$(ContainerRepository.Contains(':'))">$(ContainerRepository.Substring(0, $(ContainerRepository.LastIndexOf(':'))))</ContainerRepository>
             </PropertyGroup>
           </Target>
         </Project>
         EOF
+        export CustomBeforeDirectoryBuildProps="/tmp/CustomBeforeDirectoryBuildProps.props"
+        cat >"${CustomBeforeDirectoryBuildProps}" <<'EOF'
+        <Project>
+          <PropertyGroup Condition="'$(PublishProfile)' == 'OpenShiftContainer'">
+            <PublishProfileFullPath>/tmp/OpenShiftContainer.pubxml</PublishProfileFullPath>
+          </PropertyGroup>
+        </Project>
+        EOF
 
-        dotnet publish /p:PublishProfile=OpenShiftContainer \
-                      "/p:PublishProfileFullPath=${PublishProfileFullPath}" \
-                      "/p:OpenShiftInternalRegistry=${OpenShiftInternalRegistry}" \
-                      "/p:OpenShiftDotnetNamespace=${OpenShiftDotnetNamespace}" \
-                      "/p:ContainerRegistry=${ContainerRegistry}" \
-                      "/p:ContainerRepository=${ContainerRepository}" \
-                      "/p:ContainerImageTag=${ContainerImageTag}" \
-                      /p:DisableRedHatContainerPackage=true \
-                      "$(params.PROJECT)"
+        dotnet publish /p:PublishProfile=OpenShiftContainer "/p:OpenShiftImageName=$(params.IMAGE_NAME)" "$(params.PROJECT)"
