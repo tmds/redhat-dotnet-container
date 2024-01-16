@@ -60,8 +60,8 @@ spec:
           <PropertyGroup>
             <WebPublishMethod>Container</WebPublishMethod>
 
-            <!-- Stop the RedHat.Container package to generate a warning for specifying a base image. -->
-            <NoWarn>$(NoWarn);RHCONTAINER001</NoWarn>
+            <!-- Stop the RedHat.Container package from picking a base image. -->
+            <UseRedHatContainerImage>false</UseRedHatContainerImage>
           </PropertyGroup>
 
           <Target Name="ComputeOpenShiftContainerBaseImage" BeforeTargets="ComputeContainerBaseImage">
