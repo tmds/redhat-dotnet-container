@@ -73,6 +73,9 @@ Overview of parameters:
 |-------------------|-------------|---------------|
 | SDK_VERSION       | Tag of .NET SDK imagestream. | latest |
 | DOTNET_NAMESPACE  | Namespace of the .NET imagestreams. Set to '$(context.taskRun.namespace)' to use the pipeline namespace. | openshift |
+| SCRIPT  | Bash script to run. | dotnet --info |
+
+You can `dotnet publish` from this script with the same semantics as `dotnet-publish-image` by using the `/p:PublishProfile=OpenShiftContainer` and setting `/p:OpenShiftImageName=<IMAGE_NAME>`.
 
 ### Adding the task to your OpenShift namespace
 
