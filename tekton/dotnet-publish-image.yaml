@@ -32,6 +32,10 @@ spec:
       description: Namespace of the .NET imagestreams. Set to '$(context.taskRun.namespace)' to use the pipeline namespace.
       default: openshift
       type: string
+    - name: ENV_VARS
+      type: array
+      description: Environment variables to set.
+      default: []
   workspaces:
     - name: source
       mountPath: /workspace/source
@@ -43,6 +47,9 @@ spec:
   steps:
     - name: publish-image
       image: image-registry.openshift-image-registry.svc:5000/$(params.DOTNET_NAMESPACE)/dotnet:$(params.SDK_VERSION)
+      args:
+        - "--env-vars"
+        - "$(params.ENV_VARS[*])"
       env:
       - name: OpenShiftInternalRegistry
         value: "image-registry.openshift-image-registry.svc:5000"
@@ -62,6 +69,15 @@ spec:
         mkdir -p ~/src
         cp -a "$(workspaces.source.path)/." ~/src
         cd ~/src
+
+        parsing_flag=""
+        for arg in "$@"; do
+            if [[ "$arg" == "--env-vars" ]]; then
+                parsing_flag="env-vars"
+            elif [[ "$parsing_flag" == "env-vars" ]]; then
+                export "$arg"
+            fi
+        done
 
         PublishProfileFullPath=/tmp/OpenShiftContainer.pubxml
         cat >"${PublishProfileFullPath}" <<'EOF'
