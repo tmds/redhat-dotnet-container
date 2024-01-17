@@ -33,6 +33,7 @@ Task workspaces:
 | Workspace | Description   |
 |-----------|---------------|
 | source    | Source code.  |
+| dockerconfig | Additional registry credentials. |
 
 Overview of parameters:
 
@@ -42,6 +43,8 @@ Overview of parameters:
 | IMAGE_NAME        | Image registry to push.<br>Name of the image repository to push. When it does not include a registry, it is pushed to the internal cluster registry. If no namespace is included, the current namespace is prepended to the name. | |
 | SDK_VERSION       | Tag of .NET SDK imagestream. | latest |
 | DOTNET_NAMESPACE  | Namespace of the .NET imagestreams. Set to '$(context.taskRun.namespace)' to use the pipeline namespace. | openshift |
+| ENV_VARS          | Environment variables. | |
+| VERBOSITY         | MSBuild verbosity level. | minimal |
 
 ### Adding the task to your OpenShift namespace
 
@@ -58,6 +61,7 @@ Task workspaces:
 | Workspace | Description   |
 |-----------|---------------|
 | source    | Source code.  |
+| dockerconfig | Additional registry credentials. |
 
 Overview of parameters:
 
@@ -66,6 +70,7 @@ Overview of parameters:
 | SDK_VERSION       | Tag of .NET SDK imagestream. | latest |
 | DOTNET_NAMESPACE  | Namespace of the .NET imagestreams. Set to '$(context.taskRun.namespace)' to use the pipeline namespace. | openshift |
 | SCRIPT  | Bash script to run. | dotnet --info |
+| ENV_VARS          | Environment variables. |
 
 You can `dotnet publish` from the `SCRIPT` with the same semantics as `dotnet-publish-image` by using the `/p:PublishProfile=OpenShiftContainer` and setting `/p:OpenShiftImageName=<IMAGE_NAME>`.
 

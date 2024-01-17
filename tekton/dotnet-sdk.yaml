@@ -37,7 +37,7 @@ spec:
       type: string
     - name: ENV_VARS
       type: array
-      description: Environment variables to set.
+      description: Environment variables.
       default: []
   steps:
     - name: dotnet
