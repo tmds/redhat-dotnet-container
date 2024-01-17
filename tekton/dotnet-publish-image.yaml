@@ -32,9 +32,13 @@ spec:
       description: Namespace of the .NET imagestreams. Set to '$(context.taskRun.namespace)' to use the pipeline namespace.
       default: openshift
       type: string
+    - name: VERBOSITY
+      description: MSBuild verbosity level. Allowed values are 'q[uiet]', 'm[inimal]', 'n[ormal]', 'd[etailed]', and 'diag[nostic]'.
+      default: "minimal"
+      type: string
     - name: ENV_VARS
       type: array
-      description: Environment variables to set.
+      description: Environment variables.
       default: []
   workspaces:
     - name: source
@@ -132,4 +136,4 @@ spec:
         </Project>
         EOF
 
-        dotnet publish /p:PublishProfile=OpenShiftContainer "/p:OpenShiftImageName=$(params.IMAGE_NAME)" "$(params.PROJECT)"
+        dotnet publish -v "$(params.VERBOSITY)" /p:PublishProfile=OpenShiftContainer "/p:OpenShiftImageName=$(params.IMAGE_NAME)" "$(params.PROJECT)"
