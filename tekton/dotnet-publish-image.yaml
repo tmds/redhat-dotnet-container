@@ -35,24 +35,33 @@ spec:
   workspaces:
     - name: source
       mountPath: /workspace/source
-    # - name: dockerconfig
-    #   description: >-
-    #     An optional workspace that allows providing a .docker/config.json file to access the container registry.
-    #     The file should be placed at the root of the Workspace with name config.json.
-    #   optional: true
+    - name: dockerconfig
+      description: >-
+        An optional workspace that allows providing a .docker/config.json file to access the container registry.
+        The file should be placed at the root of the Workspace with name config.json or .dockerconfigjson.
+      optional: true
   steps:
     - name: publish-image
       image: image-registry.openshift-image-registry.svc:5000/$(params.DOTNET_NAMESPACE)/dotnet:$(params.SDK_VERSION)
+      env:
+      - name: OpenShiftInternalRegistry
+        value: "image-registry.openshift-image-registry.svc:5000"
+      - name: OpenShiftDotnetNamespace
+        value: $(params.DOTNET_NAMESPACE)
+      - name: OpenShiftCurrentNamespace
+        value: $(context.taskRun.namespace)
       script: |
         #!/usr/bin/env bash
+
+        if [[ "$(workspaces.dockerconfig.bound)" == "true" ]]; then
+          mkdir -p ~/.config/containers
+          [[ -f "$(workspaces.dockerconfig.path)/config.json" ]] && ln -s "$(workspaces.dockerconfig.path)/config.json" ~/.config/containers/auth.json
+          [[ -f "$(workspaces.dockerconfig.path)/.dockerconfigjson" ]] && ln -s "$(workspaces.dockerconfig.path)/.dockerconfigjson" ~/.config/containers/auth.json
+        fi
 
         mkdir -p ~/src
         cp -a "$(workspaces.source.path)/." ~/src
         cd ~/src
-
-        export OpenShiftInternalRegistry="image-registry.openshift-image-registry.svc:5000"
-        export OpenShiftDotnetNamespace="$(params.DOTNET_NAMESPACE)"
-        export OpenShiftCurrentNamespace="$(context.taskRun.namespace)"
 
         PublishProfileFullPath=/tmp/OpenShiftContainer.pubxml
         cat >"${PublishProfileFullPath}" <<'EOF'

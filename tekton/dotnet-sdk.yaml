@@ -17,6 +17,11 @@ spec:
       description: >-
         An optional workspace that allows to provide source code.
       optional: true
+    - name: dockerconfig
+      description: >-
+        An optional workspace that allows providing a .docker/config.json file to access the container registry.
+        The file should be placed at the root of the Workspace with name config.json or .dockerconfigjson.
+      optional: true
   params:
     - name: SCRIPT
       description: The OpenShift CLI arguments to run
@@ -33,18 +38,27 @@ spec:
   steps:
     - name: dotnet
       image: image-registry.openshift-image-registry.svc:5000/$(params.DOTNET_NAMESPACE)/dotnet:$(params.SDK_VERSION)
+      env:
+      - name: OpenShiftInternalRegistry
+        value: "image-registry.openshift-image-registry.svc:5000"
+      - name: OpenShiftDotnetNamespace
+        value: $(params.DOTNET_NAMESPACE)
+      - name: OpenShiftCurrentNamespace
+        value: $(context.taskRun.namespace)
       script: |
         #!/usr/bin/env bash
+
+        if [[ "$(workspaces.dockerconfig.bound)" == "true" ]]; then
+          mkdir -p ~/.config/containers
+          [[ -f "$(workspaces.dockerconfig.path)/config.json" ]] && ln -s "$(workspaces.dockerconfig.path)/config.json" ~/.config/containers/auth.json
+          [[ -f "$(workspaces.dockerconfig.path)/.dockerconfigjson" ]] && ln -s "$(workspaces.dockerconfig.path)/.dockerconfigjson" ~/.config/containers/auth.json
+        fi
 
         if [[ "$(workspaces.source.bound)" == "true" ]]; then
           mkdir -p ~/src
           cp -a "$(workspaces.source.path)/." ~/src
           cd ~/src
         fi
-
-        export OpenShiftInternalRegistry="image-registry.openshift-image-registry.svc:5000"
-        export OpenShiftDotnetNamespace="$(params.DOTNET_NAMESPACE)"
-        export OpenShiftCurrentNamespace="$(context.taskRun.namespace)"
 
         # Provide a convenient way to publish to the internal OpenShift registry.
         PublishProfileFullPath=/tmp/OpenShiftContainer.pubxml
