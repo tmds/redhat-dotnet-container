@@ -12,9 +12,11 @@ spec:
   description: >-
     dotnet-publish-image task builds a container image from a .NET project
     and pushes it to a container registry.
-  # results:
-  #   - name: IMAGE_DIGEST
-  #     description: Digest of the image just built.
+  results:
+    - name: IMAGE_DIGEST
+      description: Digest of the image just built.
+    - name: IMAGE
+      description: Fully qualified image name with digest of the image just built.
   params:
     - name: PROJECT
       description: Path of the .NET project file.
@@ -63,6 +65,8 @@ spec:
         value: $(context.taskRun.namespace)
       script: |
         #!/usr/bin/env bash
+
+        set -euo pipefail
 
         if [[ "$(workspaces.dockerconfig.bound)" == "true" ]]; then
           mkdir -p ~/.config/containers
@@ -136,4 +140,16 @@ spec:
         </Project>
         EOF
 
-        dotnet publish -v "$(params.VERBOSITY)" /p:PublishProfile=OpenShiftContainer "/p:OpenShiftImageName=$(params.IMAGE_NAME)" "$(params.PROJECT)"
+        exec {STDOUT_FD}</dev/stdout # workaround https://github.com/dotnet/msbuild/issues/9617.
+        dotnet publish --getProperty:GeneratedContainerDigest --getProperty:ContainerRegistry --getProperty:ContainerRepository \
+                       "/flp:logfile=/proc/self/fd/${STDOUT_FD};v=$(params.VERBOSITY)" \
+                       /p:PublishProfile=OpenShiftContainer "/p:OpenShiftImageName=$(params.IMAGE_NAME)" "$(params.PROJECT)" \
+                       >/tmp/proj-eval
+
+        EVALUATION=$(cat /tmp/proj-eval)
+        IMAGE_DIGEST=$(echo "$EVALUATION"  | grep "GeneratedContainerDigest" | awk -F'"' '{print $4}')
+        IMAGE_REGISTRY=$(echo "$EVALUATION"  | grep "ContainerRegistry" | awk -F'"' '{print $4}')
+        IMAGE_REPOSITORY=$(echo "$EVALUATION"  | grep "ContainerRepository" | awk -F'"' '{print $4}')
+
+        echo "${IMAGE_DIGEST}" >/tekton/results/IMAGE_DIGEST
+        echo "${IMAGE_REGISTRY}/${IMAGE_REPOSITORY}@${IMAGE_DIGEST}" >/tekton/results/IMAGE

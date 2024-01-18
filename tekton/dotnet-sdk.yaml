@@ -55,6 +55,8 @@ spec:
       script: |
         #!/usr/bin/env bash
 
+        set -euo pipefail
+
         if [[ "$(workspaces.dockerconfig.bound)" == "true" ]]; then
           mkdir -p ~/.config/containers
           [[ -f "$(workspaces.dockerconfig.path)/config.json" ]] && ln -s "$(workspaces.dockerconfig.path)/config.json" ~/.config/containers/auth.json
