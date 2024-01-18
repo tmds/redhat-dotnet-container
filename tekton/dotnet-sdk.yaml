@@ -22,6 +22,12 @@ spec:
         An optional workspace that allows providing a .docker/config.json file to access the container registry.
         The file should be placed at the root of the Workspace with name config.json or .dockerconfigjson.
       optional: true
+    - name: dotnetconfig
+      description: >-
+        An optional workspace that allows providing common configuration for .NET Tekton tasks.
+        If a 'setup' file is present, its contents get executed before running the script.
+        If a 'Build.props' file is present, it will be loaded by the .NET SDK through CustomBeforeDirectoryBuildProps.
+      optional: true
   params:
     - name: SCRIPT
       description: The OpenShift CLI arguments to run
@@ -54,6 +60,10 @@ spec:
         value: $(context.taskRun.namespace)
       - name: RunningInTekton
         value: "true"
+      - name: DOTNETCONFIG_DIRECTORY_BOUND
+        value: $(workspaces.dotnetconfig.bound)
+      - name: DOTNETCONFIG_DIRECTORY_PATH
+        value: $(workspaces.dotnetconfig.path)
       script: |
         #!/usr/bin/env bash
 
@@ -65,11 +75,11 @@ spec:
           [[ -f "$(workspaces.dockerconfig.path)/.dockerconfigjson" ]] && ln -s "$(workspaces.dockerconfig.path)/.dockerconfigjson" ~/.config/containers/auth.json
         fi
 
+        mkdir -p ~/src
         if [[ "$(workspaces.source.bound)" == "true" ]]; then
-          mkdir -p ~/src
           cp -a "$(workspaces.source.path)/." ~/src
-          cd ~/src
         fi
+        cd ~/src
 
         parsing_flag=""
         for arg in "$@"; do
@@ -125,12 +135,19 @@ spec:
           </Target>
         </Project>
         EOF
+
+        if [[ "${DOTNETCONFIG_DIRECTORY_BOUND}" == "true" ]] && [[ -f "${DOTNETCONFIG_DIRECTORY_PATH}/setup" ]]; then
+          source "${DOTNETCONFIG_DIRECTORY_PATH}/setup"
+        fi
+
         export CustomBeforeDirectoryBuildProps="/tmp/CustomBeforeDirectoryBuildProps.props"
         cat >"${CustomBeforeDirectoryBuildProps}" <<'EOF'
         <Project>
           <PropertyGroup Condition="'$(PublishProfile)' == 'OpenShiftContainer'">
             <PublishProfileFullPath>/tmp/OpenShiftContainer.pubxml</PublishProfileFullPath>
           </PropertyGroup>
+
+          <Import Project="$(DOTNETCONFIG_DIRECTORY_PATH)/Build.props" Condition="'$(DOTNETCONFIG_DIRECTORY_BOUND)' == 'true' And Exists('$(DOTNETCONFIG_DIRECTORY_PATH)/Build.props')" />
         </Project>
         EOF
 
