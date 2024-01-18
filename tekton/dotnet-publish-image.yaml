@@ -50,6 +50,12 @@ spec:
         An optional workspace that allows providing a .docker/config.json file to access the container registry.
         The file should be placed at the root of the Workspace with name config.json or .dockerconfigjson.
       optional: true
+    - name: dotnetconfig
+      description: >-
+        An optional workspace that allows providing common configuration for .NET Tekton tasks.
+        If a 'setup' file is present, its contents get executed before running the script.
+        If a 'Build.props' file is present, it will be loaded by the .NET SDK through CustomBeforeDirectoryBuildProps.
+      optional: true
   steps:
     - name: publish-image
       image: image-registry.openshift-image-registry.svc:5000/$(params.DOTNET_NAMESPACE)/dotnet:$(params.SDK_VERSION)
@@ -65,6 +71,10 @@ spec:
         value: $(context.taskRun.namespace)
       - name: RunningInTekton
         value: "true"
+      - name: DOTNETCONFIG_DIRECTORY_BOUND
+        value: $(workspaces.dotnetconfig.bound)
+      - name: DOTNETCONFIG_DIRECTORY_PATH
+        value: $(workspaces.dotnetconfig.path)
       script: |
         #!/usr/bin/env bash
 
@@ -133,12 +143,19 @@ spec:
           </Target>
         </Project>
         EOF
+
+        if [[ "${DOTNETCONFIG_DIRECTORY_BOUND}" == "true" ]] && [[ -f "${DOTNETCONFIG_DIRECTORY_PATH}/setup" ]]; then
+          source "${DOTNETCONFIG_DIRECTORY_PATH}/setup"
+        fi
+
         export CustomBeforeDirectoryBuildProps="/tmp/CustomBeforeDirectoryBuildProps.props"
         cat >"${CustomBeforeDirectoryBuildProps}" <<'EOF'
         <Project>
           <PropertyGroup Condition="'$(PublishProfile)' == 'OpenShiftContainer'">
             <PublishProfileFullPath>/tmp/OpenShiftContainer.pubxml</PublishProfileFullPath>
           </PropertyGroup>
+
+          <Import Project="$(DOTNETCONFIG_DIRECTORY_PATH)/Build.props" Condition="'$(DOTNETCONFIG_DIRECTORY_BOUND)' == 'true' And Exists('$(DOTNETCONFIG_DIRECTORY_PATH)/Build.props')" />
         </Project>
         EOF
 
