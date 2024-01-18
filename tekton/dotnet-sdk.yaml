@@ -52,6 +52,8 @@ spec:
         value: $(params.DOTNET_NAMESPACE)
       - name: OpenShiftCurrentNamespace
         value: $(context.taskRun.namespace)
+      - name: RunningInTekton
+        value: "true"
       script: |
         #!/usr/bin/env bash
 

@@ -46,6 +46,22 @@ Overview of parameters:
 | ENV_VARS          | Environment variables. | |
 | VERBOSITY         | MSBuild verbosity level. | minimal |
 
+Overview of results:
+
+| Result         | Description | Example |
+|-------------------|-------------|---------------|
+| IMAGE           | Digest of the image. | image-registry.openshift-image-registry.svc:5000/my-namespace/my-app@sha256:5de0f82b679a0f3741044aa5db8a1cc92cc5449c08f7765ffe250f64842019fa |
+| IMAGE_DIGEST    | Fully qualified image name of the image | sha256:5de0f82b679a0f3741044aa5db8a1cc92cc5449c08f7765ffe250f64842019fa |
+
+Environment variables:
+
+| Variable         | Description | Value |
+|------------------|-------------|-------|
+| OpenShiftInternalRegistry | OpenShift internal registry hostname. | image-registry.openshift-image-registry.svc:5000 |
+| OpenShiftDotnetNamespace | Namespace that imports the .NET imagestreams. | DOTNET_NAMESPACE parameter |
+| OpenShiftCurrentNamespace | Namespace where the pipeline runs. | $(context.taskRun.namespace) |
+| RunningInTekton | Enables detecting if the project is built with Tekton. | true |
+
 ### Adding the task to your OpenShift namespace
 
 ```
@@ -71,6 +87,15 @@ Overview of parameters:
 | DOTNET_NAMESPACE  | Namespace of the .NET imagestreams. Set to '$(context.taskRun.namespace)' to use the pipeline namespace. | openshift |
 | SCRIPT  | Bash script to run. | dotnet --info |
 | ENV_VARS          | Environment variables. |
+
+Environment variables:
+
+| Variable         | Description | Value |
+|------------------|-------------|-------|
+| OpenShiftInternalRegistry | OpenShift internal registry hostname. | image-registry.openshift-image-registry.svc:5000 |
+| OpenShiftDotnetNamespace | Namespace that imports the .NET imagestreams. | DOTNET_NAMESPACE parameter |
+| OpenShiftCurrentNamespace | Namespace where the pipeline runs. | $(context.taskRun.namespace) |
+| RunningInTekton | Enables detecting if the project is built with Tekton. | true |
 
 You can `dotnet publish` from the `SCRIPT` with the same semantics as `dotnet-publish-image` by using the `/p:PublishProfile=OpenShiftContainer` and setting `/p:OpenShiftImageName=<IMAGE_NAME>`.
 

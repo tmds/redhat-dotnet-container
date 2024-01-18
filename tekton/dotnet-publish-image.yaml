@@ -14,9 +14,9 @@ spec:
     and pushes it to a container registry.
   results:
     - name: IMAGE_DIGEST
-      description: Digest of the image just built.
+      description: Digest of the image.
     - name: IMAGE
-      description: Fully qualified image name with digest of the image just built.
+      description: Fully qualified image name of the image.
   params:
     - name: PROJECT
       description: Path of the .NET project file.
@@ -63,6 +63,8 @@ spec:
         value: $(params.DOTNET_NAMESPACE)
       - name: OpenShiftCurrentNamespace
         value: $(context.taskRun.namespace)
+      - name: RunningInTekton
+        value: "true"
       script: |
         #!/usr/bin/env bash
 
