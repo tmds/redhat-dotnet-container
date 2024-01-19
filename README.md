@@ -47,6 +47,7 @@ Overview of parameters:
 | SDK_VERSION       | Tag of .NET SDK imagestream. | `latest` |
 | DOTNET_NAMESPACE  | Namespace of the .NET imagestreams. Set to `$(context.taskRun.namespace)` to use the pipeline namespace. | `openshift` |
 | USE_DOTNET_IMAGESTREAM_BASE_IMAGES | Set to 'true' to build the application image using .NET imagestream base images. | `true` |
+| BUILD_PROPERTIES  | MSBuild properties to pass to the `publish` command. | | 
 | ENV_VARS          | Environment variables. | |
 | VERBOSITY         | MSBuild verbosity level. | `minimal` |
 

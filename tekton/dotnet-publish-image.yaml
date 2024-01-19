@@ -42,6 +42,10 @@ spec:
       description: MSBuild verbosity level. Allowed values are 'q[uiet]', 'm[inimal]', 'n[ormal]', 'd[etailed]', and 'diag[nostic]'.
       default: "minimal"
       type: string
+    - name: BUILD_PROPERTIES
+      type: array
+      description: MSBuild properties to pass to the publish command.
+      default: []
     - name: ENV_VARS
       type: array
       description: Environment variables.
@@ -66,6 +70,8 @@ spec:
       args:
         - "--env-vars"
         - "$(params.ENV_VARS[*])"
+        - "--build-props"
+        - "$(params.BUILD_PROPERTIES[*])"
       env:
       - name: OpenShiftInternalRegistry
         value: "image-registry.openshift-image-registry.svc:5000"
@@ -84,13 +90,21 @@ spec:
 
         set -euo pipefail
 
+        declare -a __dotnet_publish_image_buildprops
         parsing_flag=""
         for arg in "$@"; do
-            if [[ "$arg" == "--env-vars" ]]; then
-                parsing_flag="env-vars"
-            elif [[ "$parsing_flag" == "env-vars" ]]; then
-                export "$arg"
+          if [[ "$arg" == "--env-vars" ]] || [[ "$arg" == "--build-props" ]]; then
+            parsing_flag="${arg:2}"
+          elif [[ "$parsing_flag" == "env-vars" ]]; then
+            export "$arg"
+          elif [[ "$parsing_flag" == "build-props" ]]; then
+            if [[ "${arg}" == *\;* ]] && [[ "${arg}" != *=\"*\" ]]; then
+                echo "Invalid BUILD_PROPERTIES property: ${arg}" >&2
+                echo "Property values that contain semicolons must be enclosed with double quotes. For example: MyProperty=\"Value1;Value2\"" >&2
+                exit 1
             fi
+            __dotnet_publish_image_buildprops+=("-p:$arg")
+          fi
         done
 
         if [[ "$(workspaces.dockerconfig.bound)" == "true" ]]; then
@@ -135,11 +149,11 @@ spec:
         IMAGE_NAME="$(params.IMAGE_NAME)"
         # If the name includes no repository, use the OpenShift internal repository.
         if [[ "${IMAGE_NAME%%/*}" != *.* ]]; then
-            # If the name has no path component, use the current namespace.
-            if [[ "${IMAGE_NAME}" != */* ]]; then
+          # If the name has no path component, use the current namespace.
+          if [[ "${IMAGE_NAME}" != */* ]]; then
             IMAGE_NAME="$(context.taskRun.namespace)/${IMAGE_NAME}"
-            fi
-            IMAGE_NAME="${OpenShiftInternalRegistry}/${IMAGE_NAME}"
+          fi
+          IMAGE_NAME="${OpenShiftInternalRegistry}/${IMAGE_NAME}"
         fi
 
         # Determine properties used by the .NET SDK container tooling.
@@ -156,15 +170,19 @@ spec:
         exec {STDOUT_FD}</dev/stdout # workaround https://github.com/dotnet/msbuild/issues/9617.
         dotnet publish --getProperty:GeneratedContainerDigest \
                        "/flp:logfile=/proc/self/fd/${STDOUT_FD};v=$(params.VERBOSITY)" \
-                      "/p:ContainerRegistry=${ContainerRegistry}" \
-                      "/p:ContainerRepository=${ContainerRepository}" \
-                      "/p:ContainerImageTag=${ContainerImageTag}" /p:ImageTags= \
-                      "/p:UseDotnetImageStreamBaseImages=$(params.USE_DOTNET_IMAGESTREAM_BASE_IMAGES)" \
+                       "${__dotnet_publish_image_buildprops[@]}" \
+                       "/p:ContainerRegistry=${ContainerRegistry}" "/p:ContainerRepository=${ContainerRepository}" "/p:ContainerImageTag=${ContainerImageTag}" /p:ImageTags= \
+                       "/p:UseDotnetImageStreamBaseImages=$(params.USE_DOTNET_IMAGESTREAM_BASE_IMAGES)" \
                        /t:PublishContainer \
                        "$(params.PROJECT)" \
-                       >/tmp/digest
+                       >/tmp/digest || EXIT_CODE=$?
+        # kill processes that might keep STDOUT_FD open
+        kill -9 $(pgrep dotnet) >/dev/null 2>&1 || true
 
         IMAGE_DIGEST=$(cat /tmp/digest)
 
         echo "${IMAGE_DIGEST}" >/tekton/results/IMAGE_DIGEST
         echo "${ContainerRegistry}/${ContainerRepository}@${IMAGE_DIGEST}" >/tekton/results/IMAGE
+
+        exit "${EXIT_CODE}"
+
