@@ -12,7 +12,12 @@
 
   <!-- Use a Red Hat base image when the user hasn't opted out. -->
   <Target Name="ComputeRedHatContainerBaseImage" BeforeTargets="ComputeContainerBaseImage" Condition="'$(UseRedHatContainerImage)' == 'true'">
-    <Warning Condition="'$(ContainerBaseImage)' != ''" Code="RHCONTAINER001" Text="A container base image was set, it will not be overridden by a Red Hat image." />
+
+    <PropertyGroup>
+      <!-- Don't emit a warning when the project is set to use image stream base images. -->
+      <_noRedHatBaseImageWarning Condition="'$(UseDotnetImageStreamBaseImages)' == 'true' And '$(ContainerBaseImage.StartsWith($(OpenShiftInternalRegistry)/))'" >true</_noRedHatBaseImageWarning>
+    </PropertyGroup>
+    <Warning Condition="'$(ContainerBaseImage)' != '' And '$(_noRedHatBaseImageWarning)' != 'true'" Code="RHCONTAINER001" Text="A container base image was set, it will not be overridden with a Red Hat image." />
 
     <PropertyGroup Condition="'$(ContainerBaseImage)' == ''">
       <ContainerBaseImage Condition="'$(_TargetFrameworkVersionWithoutV)' == '6.0'">$(RedHatAspNet60RuntimeImage)</ContainerBaseImage>
