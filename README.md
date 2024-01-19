@@ -35,6 +35,8 @@ Task workspaces:
 | source    | Source code.  |
 | dockerconfig | Additional registry credentials. |
 | dotnetconfig | Shared .NET configuration.<br>If a `setup` file is present, its contents get executed before running the script.<br>If a `Build.props` file is present, it will be loaded by the .NET SDK through CustomBeforeDirectoryBuildProps. |
+| DOTNETCONFIG_DIRECTORY_BOUND | `true` when `dotnetconfig` is bound. | |
+| DOTNETCONFIG_DIRECTORY_PATH | `dotnetconfig` path when bound. | |
 
 Overview of parameters:
 
@@ -44,6 +46,7 @@ Overview of parameters:
 | IMAGE_NAME        | Image registry to push.<br>Name of the image repository to push. When it does not include a registry, it is pushed to the internal cluster registry. If no namespace is included, the current namespace is prepended to the name. | |
 | SDK_VERSION       | Tag of .NET SDK imagestream. | `latest` |
 | DOTNET_NAMESPACE  | Namespace of the .NET imagestreams. Set to `$(context.taskRun.namespace)` to use the pipeline namespace. | `openshift` |
+| USE_DOTNET_IMAGESTREAM_BASE_IMAGES | Set to 'true' to build the application image using .NET imagestream base images. | `true` |
 | ENV_VARS          | Environment variables. | |
 | VERBOSITY         | MSBuild verbosity level. | `minimal` |
 
@@ -62,6 +65,8 @@ Environment variables:
 | OpenShiftDotnetNamespace | Namespace that imports the .NET imagestreams. | `DOTNET_NAMESPACE` parameter |
 | OpenShiftCurrentNamespace | Namespace where the pipeline runs. | `$(context.taskRun.namespace)` |
 | RunningInTekton | Enables detecting if the project is built with Tekton. | `true` |
+| DOTNETCONFIG_DIRECTORY_BOUND | `true` when `dotnetconfig` is bound. | |
+| DOTNETCONFIG_DIRECTORY_PATH | `dotnetconfig` path when bound. | |
 
 ### Adding the task to your OpenShift namespace
 
@@ -87,7 +92,7 @@ Overview of parameters:
 |-------------------|-------------|---------------|
 | SDK_VERSION       | Tag of .NET SDK imagestream. | `latest` |
 | DOTNET_NAMESPACE  | Namespace of the .NET imagestreams. Set to `$(context.taskRun.namespace)` to use the pipeline namespace. | `openshift` |
-| SCRIPT  | Bash script to run. | `dotnet --info` |
+| SCRIPT  | Bash script to run. | _Publish example_ |
 | ENV_VARS          | Environment variables. |
 
 Environment variables:
@@ -99,7 +104,7 @@ Environment variables:
 | OpenShiftCurrentNamespace | Namespace where the pipeline runs. | `$(context.taskRun.namespace)` |
 | RunningInTekton | Enables detecting if the project is built with Tekton. | `true` |
 
-You can `dotnet publish` from the `SCRIPT` with the same semantics as `dotnet-publish-image` by using the `/p:PublishProfile=OpenShiftContainer` and setting `/p:OpenShiftImageName=<IMAGE_NAME>`.
+When publishing a container image from the `SCRIPT`, you can override the project to build the application image using .NET imagestream base images by adding `/p:UseDotnetImageStreamBaseImages=true` to the `publish` command.
 
 ### Adding the task to your OpenShift namespace
 
