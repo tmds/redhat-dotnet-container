@@ -168,6 +168,7 @@ spec:
         fi
 
         exec {STDOUT_FD}</dev/stdout # workaround https://github.com/dotnet/msbuild/issues/9617.
+        EXIT_CODE=0
         dotnet publish --getProperty:GeneratedContainerDigest \
                        "/flp:logfile=/proc/self/fd/${STDOUT_FD};v=$(params.VERBOSITY)" \
                        "${__dotnet_publish_image_buildprops[@]}" \
